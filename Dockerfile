@@ -1,4 +1,6 @@
-FROM ubuntu:20.04
+# Use Ubuntu 22.04 for ARM64 (has PHP 8.1+), 20.04 for amd64 (for compatibility)
+ARG TARGETARCH
+FROM ubuntu:22.04
 
 # Supresses unwanted user interaction (like "Please select the geographic area" when installing tzdata)
 ENV DEBIAN_FRONTEND=noninteractive
@@ -11,9 +13,22 @@ RUN sed -i 's/archive\.ubuntu\.com/us\.archive\.ubuntu\.com/' /etc/apt/sources.l
 
 # Miscellaneous deps
 RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg git ca-certificates
-# PHP
-RUN apt-get install -y software-properties-common && add-apt-repository -y ppa:ondrej/php
-RUN apt-get update && apt-get install -y --no-install-recommends php8.1 php8.1-curl php8.1-iconv php8.1-mbstring php8.1-bcmath php8.1-gmp
+# PHP - Handle both x86_64 and ARM64 architectures
+# Ubuntu 22.04 has PHP 8.1+ available by default, which works for both architectures
+RUN apt-get install -y software-properties-common
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "amd64" ]; then \
+        # For amd64: Use ondrej PPA for PHP 8.1 \
+        add-apt-repository -y ppa:ondrej/php && \
+        apt-get update && \
+        apt-get install -y --no-install-recommends php8.1 php8.1-curl php8.1-mbstring php8.1-bcmath php8.1-gmp php8.1-zip; \
+    else \
+        # For ARM64: Ubuntu 22.04 has PHP 8.1+ by default, install from default repos \
+        apt-get update && \
+        (apt-get install -y --no-install-recommends php8.1 php8.1-curl php8.1-mbstring php8.1-bcmath php8.1-gmp php8.1-zip 2>/dev/null || \
+         apt-get install -y --no-install-recommends php8.2 php8.2-curl php8.2-mbstring php8.2-bcmath php8.2-gmp php8.2-zip 2>/dev/null || \
+         apt-get install -y --no-install-recommends php php-curl php-mbstring php-bcmath php-gmp php-zip); \
+    fi
 # Node
 RUN apt-get update
 RUN apt-get install -y ca-certificates curl gnupg
@@ -38,6 +53,8 @@ RUN mkdir -p /usr/share/dotnet && \
     curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --install-dir /usr/share/dotnet --channel 7.0 && \
     ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet && \
     dotnet --list-sdks || echo "Installing SDK..."
+# Go - Install Go for testing (optional, but needed for Go tests)
+RUN apt-get update && apt-get install -y --no-install-recommends golang-go
 # Installs as a local Node & Python module so that `require ('ccxt')` and `import ccxt` should work after that
 RUN npm install
 RUN ln -s /ccxt /usr/lib/node_modules/
@@ -47,7 +64,7 @@ RUN cd python \
     && cd ..
 ## Install composer and everything else that it needs and manages
 RUN /ccxt/composer-install.sh
-RUN apt-get update && apt-get install -y --no-install-recommends zip unzip php-zip
+RUN apt-get update && apt-get install -y --no-install-recommends zip unzip
 RUN mv /ccxt/composer.phar /usr/local/bin/composer
 RUN composer install
 ## Remove apt sources
