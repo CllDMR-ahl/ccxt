@@ -1,5 +1,5 @@
 {
-  "name": "ccxt",
+  "name": "fx-ccxt",
   "version": "4.5.40",
   "description": "A cryptocurrency trading API with more than 100 exchanges in JavaScript / TypeScript / Python / C# / PHP / Go",
   "unpkg": "dist/ccxt.browser.min.js",
@@ -24,7 +24,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ccxt/ccxt.git"
+    "url": "git+https://github.com/CLLDMR-ahl/ccxt.git"
   },
   "readme": "README.md",
   "scripts": {
